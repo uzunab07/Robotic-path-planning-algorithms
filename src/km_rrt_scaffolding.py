@@ -2,9 +2,9 @@ import networkx as nx
 import random
 import sys
 
-from assignment_10_support import read_environment_file
-from assignment_10_support import get_start_goal
-from assignment_10_support import plot_path
+from assignment_9_support import read_environment_file
+from assignment_9_support import get_start_goal
+from assignment_9_support import plot_path
 
 
 def bresenham_line(x1, y1, x2, y2):
