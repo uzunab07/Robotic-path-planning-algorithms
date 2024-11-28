@@ -1,10 +1,11 @@
 import networkx as nx
 import random
 import sys
+import os
 
-from assignment_10_support import read_environment_file
-from assignment_10_support import get_start_goal
-from assignment_10_support import plot_path
+from assignment_9_support import read_environment_file
+from assignment_9_support import get_start_goal
+from assignment_9_support import plot_path
 
 
 def bresenham_line(x1, y1, x2, y2):
@@ -48,7 +49,7 @@ def bresenham_line(x1, y1, x2, y2):
     points.append((x, y))  # Add the final point
     return points
 
-def generate_sample_node(env)->tuple:
+def generate_sample_node(env,goal, weight=0.2)->tuple:
     ''' Generate a sample node
     Use random.randint to generate the integer coordinates of the node
     Check if node is valid, if not, generate another node
@@ -56,9 +57,19 @@ def generate_sample_node(env)->tuple:
         env (list): list of lists representing the grid
     '''
     # <-- complete code here -->
-    pass
+    if random.random() < weight:  # With probability `weight`, return the goal
+        return goal
+    
+    x = random.randint(0,len(env[0])-1)
+    y = random.randint(0,len(env)-1)
+    
+    # Ensure the sample is valid (not an obstacle, i.e., env[y][x] is not '#').
+    while env[y][x]=="#":
+         x = random.randint(0,len(env[0])-1)
+         y = random.randint(0,len(env)-1)
+    return (x,y)
 
-def find_closest_node(tree, sample_node)->tuple:
+def find_closest_node(tree, sample_node, goal, weight=1.5)->tuple:
     ''' Find the closest node in the graph to the sample node
     Loops through all the vertices in the tree to get the closest node
     Args:
@@ -69,7 +80,23 @@ def find_closest_node(tree, sample_node)->tuple:
     '''
     # -- find the closest node in the graph to the sample node
     # <-- complete code here -->
-    pass
+    # First Assume there is no close node
+    closest_node = None
+    # Assume the closest distance is Infinity
+    closest_dist =float('inf')
+    
+    # Iterate throught node in the graph
+    for node in tree.nodes:
+        # Compute the weighted distance (closer to the goal gets a lower effective distance)
+        euclidean_dist = ((node[0] - sample_node[0]) ** 2 + (node[1] - sample_node[1]) ** 2) ** 0.5
+        goal_bias = ((node[0] - goal[0]) ** 2 + (node[1] - goal[1]) ** 2) ** 0.5 * weight
+        weighted_dist = euclidean_dist + goal_bias
+        
+        if weighted_dist < closest_dist:
+            closest_dist = weighted_dist
+            closest_node = node
+    
+    return closest_node
 
 def steer(env, closest_node, sample_node):
     ''' Steer the closest node towards the sample node
@@ -86,9 +113,17 @@ def steer(env, closest_node, sample_node):
         
     '''
     # <-- complete code here -->
-    pass
+    # Generate the line between the closest node and the sample node
+    line = bresenham_line(closest_node[0], closest_node[1], sample_node[0], sample_node[1])
+    
+    # Check for Obstacle
+    for x,y in line:
+        if env[y][x] == '#':
+            return closest_node
+    return line[-1]
+    
 
-def rrt_algorithm(env, start, end, tree, max_nodes=300):
+def rrt_algorithm(env, start, end, tree, max_nodes=300,weight=0.2, distance_weight=1.5):
     ''' RRT Algorithm
     Args:
         env (list): list of lists representing the grid
@@ -107,39 +142,46 @@ def rrt_algorithm(env, start, end, tree, max_nodes=300):
     goal_found = False
     notAtGoal = True
     # While loop till goal is found or max_nodes is reached
-    # while notAtGoal:
+    while notAtGoal or not goal_found:
         # -- Generate a sample node
         # <-- complete code here -->
-
+        sample_node = generate_sample_node(env, end, weight)
         # -- Find the closest node in the graph to the sample node
         # <-- complete code here -->
-
+        closest_node = find_closest_node(tree, sample_node, end, distance_weight)
         # -- Steer the closest node towards the sample node
         # <-- complete code here -->
-
+        new_node = steer(env,closest_node,sample_node)
         # -- Add the new node to the tree
         # <-- complete code here -->
-        
+        # First I check the new node is different from the closest_node
+        if new_node != closest_node:
+            tree.add_edge(closest_node, new_node)
         # -- Check if the new node is at the goal
         # <-- complete code here -->
-        
+        if abs(new_node[0] - end[0]) <= 1 and abs(new_node[1] - end[1]) <= 1:
+            if steer(env, new_node, end) == end:  # Ensure a valid direct path to the goal
+                goal_found = True
+                tree.add_edge(new_node, end) 
         # -- Check if the max number of nodes has been reached
         # <-- complete code here -->
-
+        if len(tree.nodes) >= max_nodes:
+            break
+        
     # <-- uncomment the following line to return the tree and goal_found -->
-    # return tree, goal_found
-    # <-- Remove the following statement -->
-    pass
+    return tree, goal_found
 
 
-def main(filename = '../resources/grid_0.txt'):
+
+def main():
     ''' Main function for running the RRT algorithm
     '''
     # -- get the filename
-    filename = '../resources/grid_6.txt'
+    filename = '/Users/khaledmohamedali/Downloads/My_Projects/Mobile-Robots/Robotic-path-planning-algorithms/resources/grid_1.txt'
     
     # -- read the filename into environment
     grid_env = read_environment_file(filename)
+    
     
     # -- get the start and goal positions
     start, goal = get_start_goal(grid_env)
@@ -152,13 +194,16 @@ def main(filename = '../resources/grid_0.txt'):
     tree = nx.Graph()
     
     # -- calculate RRT path using the grid environment
-    tree, goal_found = rrt_algorithm(grid_env, start, goal, tree)
+    tree, goal_found = rrt_algorithm(grid_env, start, goal, tree,weight=0.2, distance_weight=1.5)
     
-    # -- get the path from the tree
-    path = nx.shortest_path(tree, start, goal)
-
-    # -- display the path
-    plot_path(grid_env, path, 'RRT Path')
+     # -- Get the path from the tree
+    if goal_found:
+        path = nx.shortest_path(tree, start, goal)
+        # -- Display the path
+        plot_path(grid_env, path, 'Weighted RRT Path')
+    else:
+        print("No path found.")
+        
 
 def rrt_usage():
     print ("-"*30)
@@ -170,7 +215,9 @@ def rrt_usage():
 if __name__ == '__main__':
     # -- system argument for environment filename
     # -- default is '../resources/grid_0.txt'
-    if len(sys.argv) > 1:
-        main(sys.argv[1])
-    else:
-        rrt_usage()
+     main()
+     
+    # if len(sys.argv) > 1:
+    #     main(sys.argv[1])
+    # else:
+    #     rrt_usage()

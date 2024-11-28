@@ -168,12 +168,10 @@ def rrt_algorithm(env, start, end, tree, max_nodes=300):
 
 
 
-def main():
-    ''' Main function for running the RRT algorithm
+def main(filename = os.getcwd()+'/resources/grid_0.txt'):
     '''
-    # -- get the filename
-    filename = '/Users/khaledmohamedali/Downloads/My_Projects/Mobile-Robots/Robotic-path-planning-algorithms/resources/grid_1.txt'
-    
+    Main function for running the RRT algorithm
+    '''
     # -- read the filename into environment
     grid_env = read_environment_file(filename)
     
@@ -191,11 +189,13 @@ def main():
     # -- calculate RRT path using the grid environment
     tree, goal_found = rrt_algorithm(grid_env, start, goal, tree)
     
-    # -- get the path from the tree
-    path = nx.shortest_path(tree, start, goal)
+    if goal_found:
+        path = nx.shortest_path(tree, start, goal)
+        # -- Display the path
+        plot_path(grid_env, path, 'RRT Path')
+    else:
+        print("No path found.")
 
-    # -- display the path
-    plot_path(grid_env, path, 'RRT Path')
 
 def rrt_usage():
     print ("-"*30)
@@ -207,7 +207,10 @@ def rrt_usage():
 if __name__ == '__main__':
     # -- system argument for environment filename
     # -- default is '../resources/grid_0.txt'
-     main()
+    absolute_path = os.getcwd()
+    filename = '/resources/grid_0.txt'
+    filename=absolute_path + filename
+    main(filename)
      
     # if len(sys.argv) > 1:
     #     main(sys.argv[1])
